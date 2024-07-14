@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, computed, inject } from "vue";
+import { defineComponent, h, ref, computed, inject, resolveComponent } from "vue";
 const RouteKey = Symbol("RouteKey");
 
 // parse the path and query params utility (e.g. /about?name=John&age=30 => { path: '/about', query: { name: 'John', age: 30 } })
@@ -20,11 +20,10 @@ function parsePath(url) {
 
 export function createRouter(options) {
   const { routes } = options; // 👈 you'll need this
-  const { pathname, search } = window.location;
+  const { pathname, search, origin } = window.location;
   const parsed = parsePath(`${pathname}${search}`);
   const route = ref(parsed);
   const routePath = computed(() => route.value.path); // 👈 you'll need this
-  const origin = window.location.origin; // http://localhost:5173 // 👈 you'll need this
 
   return {
     // 👇 CODE HERE! 👇
@@ -34,7 +33,43 @@ export function createRouter(options) {
       // create a RouterView component, which will render the current route component
       // along with some extra HTML to mimic a browser
       // just like with Vue Router all the RouteRecords are set via options.routes (see main.js)
-      const RouterView = defineComponent({});
+      const RouterView = defineComponent({
+          setup() {
+            const findComponent = (value) => routes.find(route => route.path === value)
+
+            const onInput = (event) => {
+              const { value } = event.target
+              const requestedComponent = findComponent(value)
+
+              requestedComponent && getRouter(route).push(value)
+            }
+
+            return () => {
+              const requestedComponent = findComponent(routePath.value)
+
+              if (!requestedComponent) {
+                return getRouter(route).push('/')
+              }
+
+              return h('div', { class: 'mockup-browser-wrapper'}, [
+                h('div', { class: 'mockup-browser-toolbar'}, [
+                  h('div', { class: 'mockup-browser-url'}, [
+                    h('span', origin),
+                    h('input', {
+                      type: 'text',
+                      value: routePath.value,
+                      onInput
+                    }),
+                  ])
+                ]),
+                h('div', { class: 'mockup-browser-content'}, [
+                  h(requestedComponent.component)
+                ])
+              ])
+            }
+          }
+        }
+      );
 
       app.component("RouterView", RouterView);
     },
